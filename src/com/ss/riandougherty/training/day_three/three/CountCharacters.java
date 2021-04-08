@@ -41,18 +41,19 @@ public final class CountCharacters {
 		
 		try {
 			char[] data = new char[1];
-			int i;
+			int total;
 			
-			
-			i = 0;
+			total = 0;
 			
 			while(fRead.read(data) != -1) {
 				if(data[0] == test) {
-					System.out.println(i);
+					total++;
 				}
-				
-				i++;
 			}
+			
+			System.out.println("Total number of occurences is: " + total);
+		} catch(final Exception e) {
+			e.printStackTrace();
 		} finally {
 			fRead.close();
 		}
