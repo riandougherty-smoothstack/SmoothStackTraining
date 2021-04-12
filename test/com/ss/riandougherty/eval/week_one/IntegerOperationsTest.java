@@ -9,7 +9,7 @@ public final class IntegerOperationsTest {
 	@Test
 	public void oddTest() {
 		assertTrue(IntegerOperations.isOdd().check(1));
-		assertTrue(IntegerOperations.isOdd().check(1));
+		assertFalse(IntegerOperations.isOdd().check(2));
 	}
 	
 	@Test
