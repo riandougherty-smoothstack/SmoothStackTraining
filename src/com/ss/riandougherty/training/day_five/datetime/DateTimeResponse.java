@@ -138,8 +138,4 @@ public final class DateTimeResponse {
 		
 		return false;
 	}
-	
-	public static void main(String[] args) {
-		getMondays(YearMonth.now()).forEach(System.out::println);;
-	}
 }

@@ -74,8 +74,4 @@ public final class IntegerOperations {
 			return true;
 		});
 	}
-	
-	public static void main(final String[] args) {
-		
-	}
 }
