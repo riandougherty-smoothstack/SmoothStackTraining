@@ -22,7 +22,7 @@ public final class IntegerOperations {
 	 */
 	public static PerformOperation isPrime() {
 		return ((num) -> {
-			// if least-significant bit is set, then num is odd. 
+			// if least-significant bit is set, then num is odd.
 			if((num & 1) == 0) {
 				return false;
 			}
