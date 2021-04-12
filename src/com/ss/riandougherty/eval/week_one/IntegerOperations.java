@@ -1,5 +1,9 @@
 package com.ss.riandougherty.eval.week_one;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+
 public final class IntegerOperations {
 	private IntegerOperations() {}
 	
@@ -75,5 +79,49 @@ public final class IntegerOperations {
 			
 			return true;
 		});
+	}
+	
+	private static void doAction(final int action, final int input) {
+		String out = null;
+		
+		switch(action) {
+		case 1: case 2:
+			out = isOdd().check(input) ? "ODD" : "EVEN";
+			
+			break;
+		case 3: case 4:
+			out = isPrime().check(input) ? "PRIME" : "COMPOSITE";
+			
+			break;
+		case 5:
+			out = isPalindrome().check(input) ? "PALINDROME" : "NOT PALINDROME";
+			
+			break;
+		default:
+			System.err.println("Error: invalid operation.");
+		}
+		
+		if(out != null)
+			System.out.println(out);
+	}
+	
+	public static void main(final String[] args) {
+		Scanner sc = new Scanner(System.in);
+		
+		while(sc.hasNext()) {
+			final String line = sc.next();
+			final String[] line_split = line.split(" ");
+			
+			final int input;
+			final int action;
+			
+			action = Integer.parseInt(line_split[0]);
+			
+			input = Integer.parseInt(line_split[1]);
+			
+			doAction(action, input);
+		}
+		
+		sc.close();
 	}
 }
