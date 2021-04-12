@@ -1,7 +1,5 @@
 package com.ss.riandougherty.eval.week_one;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Scanner;
 
 public final class IntegerOperations {
