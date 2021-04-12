@@ -3,15 +3,26 @@ package com.ss.riandougherty.eval.week_one;
 public final class IntegerOperations {
 	private IntegerOperations() {}
 	
+	/**
+	 * Returns PerformOperation that tests if number is odd.
+	 * 
+	 * i.e. it is not divisible by 2.
+	 */
 	public static PerformOperation isOdd() {
 		return ((num) -> {
+			// if least-significant bit is set, then num is odd. 
 			return ((num & 1) == 1);
 		});
 	}
 	
+	/**
+	 * Returns PerformOperation that tests if number is prime.
+	 * 
+	 * i.e. number is only divisible by one and itself.
+	 */
 	public static PerformOperation isPrime() {
 		return ((num) -> {
-			// if num is even
+			// if least-significant bit is set, then num is odd. 
 			if((num & 1) == 0) {
 				return false;
 			}
@@ -29,6 +40,11 @@ public final class IntegerOperations {
 		});
 	}
 	
+	/**
+	 * Returns PerformOperation that tests if number is a palindrome.
+	 * 
+	 * i.e. if number in base-10 representation is flipped, it equals itself.
+	 */
 	public static PerformOperation isPalindrome() {
 		return ((num) -> {
 			// palindrome is base-10 specific, so just convert to string

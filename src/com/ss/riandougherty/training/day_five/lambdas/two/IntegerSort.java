@@ -7,6 +7,9 @@ import java.util.stream.Collectors;
 public final class IntegerSort {
 	private IntegerSort() {}
 	
+	/**
+	 * Adds 'e' or 'o' prefix before element depending on whether element is even or odd.
+	 */
 	public List<String> tellEvenOdd(final Collection<Integer> input) {
 		return input.stream().map(i -> {
 			String r_str;

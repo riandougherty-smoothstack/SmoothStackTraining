@@ -7,6 +7,9 @@ import java.util.stream.Collectors;
 public final class ThreeLetterWithA {
 	private ThreeLetterWithA() {}
 	
+	/**
+	 * Filters Strings containing 3 letters starting with 'a'.
+	 */
 	public List<String> getThreeLetterWithAs(final Collection<String> input) {
 		return input.stream()
 				.filter(str -> str.length() == 3)
