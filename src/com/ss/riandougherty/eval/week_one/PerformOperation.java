@@ -8,5 +8,5 @@ public interface PerformOperation {
 	/**
 	 * Checks if num meets condition.
 	 */
-	public boolean check(int i);
+	public boolean check(int num);
 }
