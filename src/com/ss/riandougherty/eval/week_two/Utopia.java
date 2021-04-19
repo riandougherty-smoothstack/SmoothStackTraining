@@ -253,38 +253,8 @@ public final class Utopia {
 				System.out.println("Incorrect arguments.");
 			}
 		}));
-		type.getOptions().add(new MenuOption("Airports", () -> {
-			switch(menuOperation) {
-			case 0:
-				
-				break;
-			case 1:
-				
-				break;
-			case 2:
-				
-				break;
-			case 3:
-				
-				break;
-			}
-		}));
-		type.getOptions().add(new MenuOption("Tickets", () -> {
-			switch(menuOperation) {
-			case 0:
-				
-				break;
-			case 1:
-				
-				break;
-			case 2:
-				
-				break;
-			case 3:
-				
-				break;
-			}
-		}));
+		type.getOptions().add(new MenuOption("Airports", () -> {}));
+		type.getOptions().add(new MenuOption("Tickets", () -> {}));
 		
 		mainMenu.getOptions().add(new MenuOption("Employee", employeeMenu));
 		mainMenu.getOptions().add(new MenuOption("Traveler", flightsListTraveller));
