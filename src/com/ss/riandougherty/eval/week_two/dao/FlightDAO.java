@@ -73,4 +73,30 @@ public final class FlightDAO extends BaseDAO {
 		
 		super.delete(con);
 	}
+	
+	public static FlightDAO addFlight(final ConnectionManager cm, int route_id, int airplane_id, Time departure_time, int reserved_seats, float seat_price) throws SQLException {
+		final Connection con = cm.getConnection();
+		final PreparedStatement st;
+		st = con.prepareStatement("INSERT INTO `flight` (`route_id`, `airplane_id`, `departure_time`, `reserved_seats`, `seat_price`");
+		st.setInt(1, route_id);
+		st.setInt(2, airplane_id);
+		st.setTime(3, departure_time);
+		st.setInt(4, reserved_seats);
+		st.setFloat(5, seat_price);
+		
+		st.execute();
+		
+		final ResultSet rs = st.getGeneratedKeys();
+		
+		rs.next();
+		
+		int flight_id = rs.getInt(1);
+		
+		final FlightDAO flight = new FlightDAO(cm, flight_id);
+		
+		con.commit();
+		con.close();
+		
+		return flight;
+	}
 }

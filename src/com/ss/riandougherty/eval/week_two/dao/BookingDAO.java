@@ -31,6 +31,10 @@ public final class BookingDAO extends BaseDAO {
 	public boolean isActive() throws SQLException {
 		return this.getRSFromParams_Easy("is_active").getBoolean(1);
 	}
+	
+	public String getConfirmationCode() throws SQLException {
+		return this.getRSFromParams_Easy("confirmation_code").getString(1);
+	}
 
 	@Override
 	public void delete(final Connection con) throws SQLException {
