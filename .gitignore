@@ -2,5 +2,7 @@
 
 !/.gitignore
 
+Credentials.java
+
 !/src/
 !/test/
