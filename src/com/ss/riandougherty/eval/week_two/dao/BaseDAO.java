@@ -1,90 +1,197 @@
 package com.ss.riandougherty.eval.week_two.dao;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.ss.riandougherty.eval.week_two.ConnectionManager;
+import com.ss.riandougherty.eval.week_two.entity.BaseEntity;
+import com.ss.riandougherty.eval.week_two.util.ConnectionConsumer;
+import com.ss.riandougherty.eval.week_two.util.NameValuePair;
+import com.ss.riandougherty.eval.week_two.util.SQLUtil;
+import com.ss.riandougherty.eval.week_two.util.StringUtil;
 
-public abstract class BaseDAO {
-	protected final ConnectionManager cm;
-	protected final String table;
-	protected final String id_name;
-	protected final Object id_obj;
+/*
+ * Base DAO implementing all CRUD operations.
+ */
+public abstract class BaseDAO<T extends BaseEntity> {
+	protected ConnectionManager cm;
+	protected Map<String, DAOTable> propertyMapping;
+	private Map<DAOTable, Object> newPrimaryKeyValues;
 	
-	public BaseDAO(final ConnectionManager cm, final String table, final String id_name, final Object id_obj) {
+	public BaseDAO(final ConnectionManager cm, final Map<String, DAOTable> properties) {
 		this.cm = cm;
-		this.table = table;
-		this.id_name = id_name;
-		this.id_obj = id_obj;
+		this.propertyMapping = properties;
 	}
 	
-	public static ResultSet getRSFromParams(final Connection con, final String select_param, final String from_param, final String where_param, final Object object) throws SQLException {
-		final StringBuilder sb = new StringBuilder();
-		sb.append("SELECT `");
-		sb.append(select_param);
-		sb.append("` FROM `");
-		sb.append(from_param);
-		sb.append("` WHERE `");
-		sb.append(where_param);
-		sb.append("` = ?");
+	public BaseDAO(final ConnectionManager cm, final Class<? extends BaseDAO> classObj) {
+		this(cm, DAOMapping.getMapping(classObj).generateDAOPart());
+	}
+	
+	public void populateDAOTable(final DAOTable daoTable, final Object keyValue) throws SQLException {
+		final String query = SQLUtil.generateSelect(daoTable.getTableName(), null, daoTable.getPrimaryKeyName());
 		
-		final PreparedStatement st;
-		st = con.prepareStatement(sb.toString());
+		final Map<String, Object> toPopulate = daoTable.getProperties();
 		
-		st.setObject(1, object);
+		final ResultSet rs = SQLUtil.execute(cm.getConnection(), query, Arrays.asList(keyValue));
+		final ResultSetMetaData rsMeta = rs.getMetaData();
 		
-		final ResultSet rs;
-		rs = st.executeQuery();
+		int columns = rs.getMetaData().getColumnCount();
 		
-		if(!rs.next()) {
-			throw new SQLException("Not found.");
+		if(rs.next()) {
+			int a;
+			
+			for(a = 1; a <= columns; a++) {
+				toPopulate.put(rsMeta.getColumnLabel(a), rs.getObject(a));
+			}
 		}
-		
-		return rs;
 	}
 	
-	public static void deleteFromParams(final Connection con, final String table_param, final String id_name_param, final Object id_obj_param) throws SQLException {
-		final StringBuilder sb = new StringBuilder();
-		sb.append("DELETE FROM `");
-		sb.append(table_param);
-		sb.append("` WHERE `");
-		sb.append(id_name_param);
-		sb.append("` = ?");
-		
-		final PreparedStatement st;
-		st = con.prepareStatement(sb.toString());
-		st.setObject(1, id_obj_param);
-		
-		st.execute();
+	public abstract T getEntity() throws SQLException;
+	
+	protected static void throwErrorIfNull(final Collection<Object> objects) {
+		for(final Object object : objects) {
+			if(object == null) {
+				throw new NullPointerException();
+			}
+		}
 	}
 	
-	private ResultSet getRSFromParams_Internal(final String field, final String table_param, final String id_name_param, final Object id_obj_param) throws SQLException {
-		final Connection con = cm.getConnection();
+	public void saveProperties(final Connection con) throws SQLException {
+		newPrimaryKeyValues = new HashMap<>();
 		
-		final ResultSet rs;
-		rs = getRSFromParams(con, field, table_param, id_name_param, id_obj_param);
-		
-		con.commit();
-		con.close();
-		
-		return rs;
-	}
-	
-	protected ResultSet getRSFromParams_Different(final String field, final String table_param, final String id_name_param, final Object id_obj_param) throws SQLException {
-		return getRSFromParams_Internal(field, table_param, id_name_param, id_obj_param);
-	}
-	
-	protected ResultSet getRSFromParams_Easy(final String field) throws SQLException {
-		return getRSFromParams_Internal(field, table, id_name, id_obj);
-	}
-	
-	public Object getID() {
-		return this.id_obj;
+		for(final DAOTable daoTable : propertyMapping.values()) {
+			String sql;
+			
+			// if a table has auto increment off, then we have to supply our own primary key.
+			// so in the case that it doesn't exist but still has a primary key set, we don't want to remove the primary key from the list of objects to save.
+			
+			boolean exists;
+			if(daoTable.getKey() != null) {
+				// just because there is a key doesn't mean it exists.
+				// so we query for the key first.
+				
+				sql = SQLUtil.generateSelect(daoTable.getTableName(), daoTable.getPrimaryKeyName(), daoTable.getPrimaryKeyName());
+				
+				exists = SQLUtil.execute(con, sql, Arrays.asList(daoTable.getKey())).next();
+			} else {
+				// if it doesn't have a key then it doesn't exist.
+				exists = false;
+			}
+			
+			// we need to always create a new map since if it doesn't exist, we need to modify the properties
+			// and associate it with a key.
+			final Map<String, Object> toSave = new LinkedHashMap<>(daoTable.getProperties());
+			
+			if(exists) {
+				// effectively move primary key to last argument
+				// also remove primary key when generating update statement
+				toSave.remove(daoTable.getPrimaryKeyName());
+				
+				sql = SQLUtil.generateUpdate(daoTable.getTableName(), toSave.keySet(), daoTable.getPrimaryKeyName());
+				
+				// add it after as last argument for where
+				toSave.put(daoTable.getPrimaryKeyName(), daoTable.getKey());
+			} else {
+				sql = SQLUtil.generateInsert(daoTable.getTableName(), toSave.keySet());
+			}
+			
+			final ResultSet rs;
+			
+			rs = SQLUtil.execute(con, sql, toSave.values());
+			
+			if(!exists) {
+				// save to class variable in case query fails
+				// must call OK() or No_OK() afterwards
+				newPrimaryKeyValues.put(daoTable, rs.getObject(1));
+			}
+		}
 	}
 	
 	public void delete(final Connection con) throws SQLException {
-		deleteFromParams(con, this.table, this.id_name, this.id_obj);
+		newPrimaryKeyValues = new HashMap<>();
+		
+		for(final DAOTable daoTable : propertyMapping.values()) {
+			if(daoTable.getKey() != null) {
+				final String query = SQLUtil.generateDelete(daoTable.getTableName(), daoTable.getPrimaryKeyName());
+				
+				SQLUtil.execute(con, query, Arrays.asList(daoTable.getKey()));
+				
+				newPrimaryKeyValues.put(daoTable, null);
+			}
+		}
+	}
+	
+	private void throwErrorIfNotInTransaction() throws Exception {
+		if(newPrimaryKeyValues == null) {
+			throw new Exception("Not in transaction");
+		}
+	}
+	
+	public void OK() throws Exception {
+		throwErrorIfNotInTransaction();
+		
+		newPrimaryKeyValues.forEach((daoTable, newKey) -> {
+			daoTable.setKey(newKey);
+		});
+		
+		newPrimaryKeyValues = null;
+	}
+	
+	public void No_OK() throws Exception {
+		throwErrorIfNotInTransaction();
+		
+		newPrimaryKeyValues = null;
+	}
+	
+	protected void doAtomic(final ConnectionConsumer toExecute) throws Exception {
+		final Connection con = cm.getConnection();
+		
+		// even though it looks like we can throw "Not in transaction" exception, it will never get triggered since we
+		// create a new transaction.
+		
+		try {
+			toExecute.accept(con);
+			con.commit();
+		} catch(final SQLException e) {
+			No_OK();
+			
+			throw e;
+		} finally {
+			con.close();
+		}
+		
+		// will not execute if there is an exception.
+		OK();
+	}
+	
+	public void savePropertiesOK() throws Exception {
+		doAtomic(con -> saveProperties(con));
+	}
+	
+	public void deleteOK() throws Exception {
+		doAtomic(con -> delete(con));
+	}
+	
+	@Override
+	public String toString() {
+		final StringBuilder sb = new StringBuilder();
+		
+		final List<NameValuePair<? extends Object>> nvps;
+		nvps = propertyMapping.entrySet().stream().map(entry -> {
+			return entry.getKey() != null ? new NameValuePair<Object>(entry.getKey(), entry.getValue()) : null;
+		}).collect(Collectors.toUnmodifiableList());
+		
+		StringUtil.getFormattedStringFromNVPS(nvps);
+		
+		return sb.toString();
 	}
 }

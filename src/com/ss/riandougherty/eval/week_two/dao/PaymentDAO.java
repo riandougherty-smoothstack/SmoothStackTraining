@@ -1,30 +1,50 @@
 package com.ss.riandougherty.eval.week_two.dao;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Map;
 
 import com.ss.riandougherty.eval.week_two.ConnectionManager;
+import com.ss.riandougherty.eval.week_two.entity.Payment;
 
-public final class PaymentDAO extends BaseDAO {
-	public PaymentDAO(final ConnectionManager cm, final int id) {
-		super(cm, "booking_payment", "booking_id", id);
-	}
-	
-	public String getStripeID() throws SQLException {
-		return this.getRSFromParams_Easy("stripe_id").getString(1);
-	}
-	
-	public boolean isRefunded() throws SQLException {
-		return this.getRSFromParams_Easy("refunded").getBoolean(1);
-	}
-	
-	@Override
-	public void delete(final Connection con) throws SQLException {
-		final PreparedStatement st;
-		st = con.prepareStatement("UPDATE `booking_payment` SET `refunded` = 1 WHERE `booking_id` = ?");
-		st.setObject(1, this.id_obj);
+public final class PaymentDAO extends BaseDAO<Payment> {
+	public PaymentDAO(final ConnectionManager cm, final Payment payment) {
+		super(cm, PaymentDAO.class);
 		
-		st.execute();
+		Map<String, Object> tmpProperties = this.propertyMapping.get("booking_payment").getProperties();
+		
+		tmpProperties.put("id", payment.getID());
+		tmpProperties.put("stripe_id", payment.getStripeID());
+		tmpProperties.put("refunded", payment.isRefunded());
+	}
+	
+	public PaymentDAO(final ConnectionManager cm, final Object keyValue) throws SQLException {
+		super(cm, PaymentDAO.class);
+		
+		populateDAOTable(this.propertyMapping.get("booking_payment"), keyValue);
+	}
+
+	@Override
+	public Payment getEntity() throws SQLException {
+		DAOTable tmpDAOTable = this.propertyMapping.get("booking_payment");
+		
+		Object key;
+		Integer keyTyped;
+		Object stripeID, isRefunded;
+		
+		key = tmpDAOTable.getKey();
+		
+		if(key == null) {
+			keyTyped = null;
+		} else {
+			keyTyped = (int) (long) key;
+		}
+		
+		stripeID = tmpDAOTable.getProperty("stripe_id");
+		isRefunded = tmpDAOTable.getProperty("refunded");
+		
+		throwErrorIfNull(Arrays.asList(stripeID, isRefunded));
+		
+		return new Payment(keyTyped, (String) stripeID, ((int) isRefunded) != 0 ? true : false);
 	}
 }

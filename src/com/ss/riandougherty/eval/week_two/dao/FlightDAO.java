@@ -1,102 +1,59 @@
 package com.ss.riandougherty.eval.week_two.dao;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Time;
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.Timestamp;
+import java.util.Arrays;
+import java.util.Map;
 
 import com.ss.riandougherty.eval.week_two.ConnectionManager;
+import com.ss.riandougherty.eval.week_two.entity.Flight;
 
-public final class FlightDAO extends BaseDAO {
-	public FlightDAO(final ConnectionManager cm, final int id) {
-		super(cm, "flight", "id", id);
-	}
-	
-	public AirplaneDAO getPlane() throws SQLException {
-		return new AirplaneDAO(this.cm, this.getRSFromParams_Easy("airplane_id").getInt(1));
-	}
-	
-	public RouteDAO getRoute() throws SQLException {
-		return new RouteDAO(this.cm, this.getRSFromParams_Easy("route_id").getInt(1));
-	}
-	
-	public int getTakenSeats() throws SQLException {
-		return this.getRSFromParams_Easy("reserved_seats").getInt(1);
-	}
-	
-	public int getCapacity() throws SQLException {
-		return getPlane().getCapacity();
-	}
-	
-	public int getRemainingSeats() throws SQLException {
-		return getCapacity() - getTakenSeats();
-	}
-	
-	public float getSeatPrice() throws SQLException {
-		return this.getRSFromParams_Easy("seat_price").getFloat(1);
-	}
-	
-	public Time getDepartureTime() throws SQLException {
-		return this.getRSFromParams_Easy("departure_time").getTime(1);
-	}
-	
-	public List<BookingDAO> getBookings() throws SQLException {
-		final Connection con = cm.getConnection();
+public final class FlightDAO extends BaseDAO<Flight> {
+	public FlightDAO(final ConnectionManager cm, final Flight flight) {
+		super(cm, FlightDAO.class);
 		
-		final PreparedStatement st;
-		st = con.prepareStatement("SELECT `booking_id` FROM `flight_bookings` WHERE `flight_id` = ?");
-		st.setObject(1, this.id_obj);
+		Map<String, Object> tmpProperties = this.propertyMapping.get("flight").getProperties();
 		
-		ResultSet rs;
-		rs = st.executeQuery();
-		
-		final List<BookingDAO> bookings = new ArrayList<>();
-		
-		while(rs.next()) {
-			bookings.add(new BookingDAO(cm, rs.getInt(1)));
-		}
-		
-		con.commit();
-		con.close();
-		
-		return bookings;
+		tmpProperties.put("id", flight.getID());
+		tmpProperties.put("route_id", flight.getRoute().getID());
+		tmpProperties.put("airplane_id", flight.getAirplane().getID());
+		tmpProperties.put("departure_time", flight.getDepartureTime());
+		tmpProperties.put("reserved_seats", flight.getTakenSeats());
+		tmpProperties.put("seat_price", flight.getSeatPrice());
 	}
-
+	
+	public FlightDAO(final ConnectionManager cm, final Object keyValue) throws SQLException {
+		super(cm, FlightDAO.class);
+		
+		populateDAOTable(this.propertyMapping.get("flight"), keyValue);
+	}
+	
 	@Override
-	public void delete(final Connection con) throws SQLException {
-		for(final BookingDAO booking : getBookings()) {
-			booking.delete(con);
+	public Flight getEntity() throws SQLException {
+		DAOTable tmpDAOTable = this.propertyMapping.get("flight");
+		
+		Object key;
+		Integer keyTyped;
+		Object routeID, airplaneID, departureTime, reservedSeats, seatPrice;
+		
+		key = tmpDAOTable.getKey();
+		
+		if(key == null) {
+			keyTyped = null;
+		} else {
+			keyTyped = (int) (long) key;
 		}
 		
-		super.delete(con);
-	}
-	
-	public static FlightDAO addFlight(final ConnectionManager cm, int route_id, int airplane_id, Time departure_time, int reserved_seats, float seat_price) throws SQLException {
-		final Connection con = cm.getConnection();
-		final PreparedStatement st;
-		st = con.prepareStatement("INSERT INTO `flight` (`route_id`, `airplane_id`, `departure_time`, `reserved_seats`, `seat_price`");
-		st.setInt(1, route_id);
-		st.setInt(2, airplane_id);
-		st.setTime(3, departure_time);
-		st.setInt(4, reserved_seats);
-		st.setFloat(5, seat_price);
+		key = tmpDAOTable.getKey();
 		
-		st.execute();
+		routeID = tmpDAOTable.getProperty("route_id");
+		airplaneID = tmpDAOTable.getProperty("airplane_id");
+		departureTime = tmpDAOTable.getProperty("departure_time");
+		reservedSeats = tmpDAOTable.getProperty("reserved_seats");
+		seatPrice = tmpDAOTable.getProperty("seat_price");
 		
-		final ResultSet rs = st.getGeneratedKeys();
+		throwErrorIfNull(Arrays.asList(routeID, airplaneID, departureTime, reservedSeats, seatPrice));
 		
-		rs.next();
-		
-		int flight_id = rs.getInt(1);
-		
-		final FlightDAO flight = new FlightDAO(cm, flight_id);
-		
-		con.commit();
-		con.close();
-		
-		return flight;
+		return new Flight(keyTyped, new AirplaneDAO(cm, (int) (long) airplaneID).getEntity(), new RouteDAO(cm, (int) (long) routeID).getEntity(), (Timestamp) departureTime, (int) (long) reservedSeats, (float) seatPrice);
 	}
 }

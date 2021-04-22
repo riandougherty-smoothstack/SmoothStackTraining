@@ -1,15 +1,20 @@
 package com.ss.riandougherty.eval.week_two;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
-import com.ss.riandougherty.eval.week_two.dao.BookingDAO;
+import com.ss.riandougherty.eval.week_two.dao.AirportDAO;
+import com.ss.riandougherty.eval.week_two.dao.BaseDAO;
+import com.ss.riandougherty.eval.week_two.dao.DAOMapping;
+import com.ss.riandougherty.eval.week_two.dao.DAOMappingEntry;
 import com.ss.riandougherty.eval.week_two.dao.FlightDAO;
+import com.ss.riandougherty.eval.week_two.entity.Airport;
+import com.ss.riandougherty.eval.week_two.entity.BaseEntity;
+import com.ss.riandougherty.eval.week_two.entity.Flight;
+import com.ss.riandougherty.eval.week_two.util.SQLUtil;
 
 public final class Accessor {
 	private final ConnectionManager cm;
@@ -18,63 +23,42 @@ public final class Accessor {
 		this.cm = cm;
 	}
 	
-	public List<FlightDAO> getFlights() throws SQLException {
-		final Connection con = this.cm.getConnection();
-		
-		final PreparedStatement st;
-		final ResultSet rs;
-		st = con.prepareStatement("SELECT `id` FROM `flight`");
-		rs = st.executeQuery();
-		
-		List<FlightDAO> flights = new ArrayList<>();
-		
-		while(rs.next()) {
-			flights.add(new FlightDAO(this.cm, rs.getInt(1)));
-		}
-		
-		return flights;
-	}
-	
 	public ConnectionManager getConnectionManager() {
 		return this.cm;
 	}
 	
-	public String getRandomCode() {
-		final StringBuffer sb = new StringBuffer();
-		
-		int i;
-		
-		for(i = 0; i < 16; i++) {
-			sb.append(ThreadLocalRandom.current().nextInt(10));
-		}
-		
-		return sb.toString();
-	}
-	
-	// returns confirmation code
-	public BookingDAO createBooking(final FlightDAO flight) throws SQLException {
+	@SuppressWarnings("unchecked")
+	private <T extends BaseDAO, E extends BaseEntity> List<E> getAllByClass(Class<? extends BaseDAO> t) throws SQLException {
 		final Connection con = cm.getConnection();
+		final DAOMappingEntry daoMappingEntry;
 		
-		final String confirmationCode = getRandomCode();
+		daoMappingEntry = DAOMapping.getMapping(t);
 		
-		PreparedStatement st;
-		st = con.prepareStatement("INSERT INTO `booking` (`is_active`, `confirmation_code`) VALUES (?, ?)");
-		st.setInt(1, 1);
-		st.setString(2, confirmationCode);
-		st.executeUpdate();
-		ResultSet rs = st.getGeneratedKeys();
-		rs.next();
-		int booking_id = rs.getInt(1);
+		final List<E> items = new ArrayList<>();
 		
-		con.commit();
+		final String query = SQLUtil.generateSelect(daoMappingEntry.getPrimaryTable(), daoMappingEntry.getPrimarKeyNameFromTableName(daoMappingEntry.getPrimaryTable()), null);
 		
-		st = con.prepareStatement("INSERT INTO `flight_bookings` (`flight_id`, `booking_id`) VALUES (?, ?)");
-		st.setInt(1, (int) flight.getID());
-		st.setInt(2, booking_id);
+		final ResultSet rs = SQLUtil.execute(con, query);
+		
+		while(rs.next()) {
+			try {
+				items.add((E) ((T) t.getConstructor(ConnectionManager.class, Object.class).newInstance(cm, rs.getObject(1))).getEntity());
+			} catch (Throwable t1) {
+				t1.printStackTrace();
+			}
+		}
 		
 		con.commit();
 		con.close();
 		
-		return new BookingDAO(this.cm, booking_id);
+		return items;
+	}
+	
+	public List<Airport> getAllAirports() throws SQLException {
+		return getAllByClass(AirportDAO.class);
+	}
+	
+	public List<Flight> getAllFlights() throws SQLException {
+		return getAllByClass(FlightDAO.class);
 	}
 }
