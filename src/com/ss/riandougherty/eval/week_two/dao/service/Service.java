@@ -18,8 +18,11 @@ import com.ss.riandougherty.eval.week_two.dao.AirportDAO;
 import com.ss.riandougherty.eval.week_two.dao.FlightDAO;
 import com.ss.riandougherty.eval.week_two.dao.RouteDAO;
 import com.ss.riandougherty.eval.week_two.entity.Airport;
+import com.ss.riandougherty.eval.week_two.entity.Booking;
 import com.ss.riandougherty.eval.week_two.entity.Flight;
+import com.ss.riandougherty.eval.week_two.entity.Passenger;
 import com.ss.riandougherty.eval.week_two.entity.Route;
+import com.ss.riandougherty.eval.week_two.entity.User;
 
 public final class Service {
 	private final ConnectionManager cm;
@@ -44,7 +47,7 @@ public final class Service {
 		}
 	}
 	
-	private List<String> rebuildWithCancel(final Collection<String> items) {
+	private static List<String> rebuildWithCancel(final Collection<String> items) {
 		List<String> newItems = new ArrayList<>(items);
 		
 		newItems.add("Return to previous menu.");
@@ -52,7 +55,7 @@ public final class Service {
 		return newItems;
 	}
 	
-	private int getIntegerLine() {
+	private static int getIntegerLine() {
 		for(;;) {
 			try {
 				final Scanner sc = new Scanner(System.in);
@@ -66,7 +69,7 @@ public final class Service {
 		}
 	}
 	
-	private int getIntInRange(final int lowerBounds, final int upperBounds) {
+	private static int getIntInRange(final int lowerBounds, final int upperBounds) {
 		for(;;) {
 			try {
 				int read = getIntegerLine();
@@ -82,17 +85,17 @@ public final class Service {
 		}
 	}
 	
-	private int getIndex(final Collection<String> items) {
+	private static int getIndex(final Collection<String> items) {
 		printOptions(items);
 		
 		return getIntInRange(1, items.size());
 	}
 	
-	private <T> T getFromMapping(final Collection<String> items, final List<T> retItems) {
+	private static <T> T getFromMapping(final Collection<String> items, final List<T> retItems) {
 		return retItems.get(getIndex(items) - 1);
 	}
 	
-	private <T> T getFromMappingAppendCancel(final Collection<String> items, final List<T> retItems) {
+	private static <T> T getFromMappingAppendCancel(final Collection<String> items, final List<T> retItems) {
 		List<String> temp = rebuildWithCancel(items);
 		List<T> tempRet = new ArrayList<>(retItems);
 		
@@ -101,7 +104,7 @@ public final class Service {
 		return getFromMapping(temp, tempRet);
 	}
 	
-	public void retryOnExceptions(final Consumer<Void> method) {
+	public static void retryOnExceptions(final Consumer<Void> method) {
 		for(;;) {
 			try {
 				method.accept(null);
@@ -112,7 +115,22 @@ public final class Service {
 		}
 	}
 	
+	private static <T> T getFromListAppendCancelToString(final List<T> items) {
+		final List<String> descriptions = new ArrayList<>();
+		
+		for(final Object o : items) {
+			descriptions.add(items.toString());
+		}
+		
+		return getFromMappingAppendCancel(descriptions, items);
+	}
+	
 	public void prompt() {
+		
+		/*
+		 * Employee
+		 */
+		
 		MenuItem flightVerboseInfo = flight -> {
 			System.out.println(flight.toString());
 			
@@ -225,17 +243,197 @@ public final class Service {
 			return new MenuReturn(ret, (MenuItem) nextMenu);
 		};
 		
+		
+		/*
+		 * Administrator
+		 */
+		
+		MenuItem adminModifyAirports = operation -> {
+			final int op = (int) operation;
+			
+			Airport ent = null;
+			
+			if (op != 0) {
+				List<Airport> ents = null;
+				
+				try {
+					ents = acc.getAllAirports();
+				} catch (final SQLException e) {
+					e.printStackTrace();
+				}
+				
+				ent = getFromListAppendCancelToString(ents);
+				
+				if(ent == null) {
+					return null;
+				}
+			}
+			
+			if(op == 1) {
+				System.out.println(ent.toString());
+				
+				return null;
+			}
+			
+			try {
+				final Connection con = cm.getConnection();
+				if(op == 2) {
+					final AirportDAO entD = new AirportDAO(cm, ent);
+					
+					entD.delete(con);
+				} else {
+					final Scanner sc = new Scanner(System.in);
+					String iataCode, cityName;
+					
+					iataCode = null;
+					
+					if(op == 0) {
+						System.out.println("Enter airport IATA:");
+						
+						iataCode = sc.nextLine();
+					}
+					
+					System.out.println("Enter airport city:");
+					
+					cityName = sc.nextLine();
+					
+					new AirportDAO(cm, new Airport(iataCode, cityName)).saveProperties(con);
+				}
+				
+				con.commit();
+				con.close();
+			} catch(final Exception e) {
+				e.printStackTrace();
+				System.out.println("Invalid operation");
+			}
+			
+			return null;
+		};
+		
+		MenuItem adminModifyRoutes = operation -> {
+			final int op = (int) operation;
+			List<Route> ents = null;
+			
+			try {
+				ents = acc.getAllRoutes();
+			} catch (final SQLException e) {
+				e.printStackTrace();
+			}
+			
+			Route ent = getFromListAppendCancelToString(ents);
+			
+			return null;
+		};
+		
+		MenuItem adminModifyFlights = operation -> {
+			final int op = (int) operation;
+			List<Flight> ents = null;
+			
+			try {
+				ents = acc.getAllFlights();
+			} catch (final SQLException e) {
+				e.printStackTrace();
+			}
+			
+			Flight ent = getFromListAppendCancelToString(ents);
+			
+			return null;
+		};
+		
+		MenuItem adminModifyBookings = operation -> {
+			final int op = (int) operation;
+			List<Booking> ents = null;
+			
+			try {
+				ents = acc.getAllBookings();
+			} catch (final SQLException e) {
+				e.printStackTrace();
+			}
+			
+			Booking ent = getFromListAppendCancelToString(ents);
+			
+			return null;
+		};
+		
+		MenuItem adminModifyPassengers = operation -> {
+			final int op = (int) operation;
+			List<Passenger> ents = null;
+			
+			try {
+				ents = acc.getAllPassengers();
+			} catch (final SQLException e) {
+				e.printStackTrace();
+			}
+			
+			Passenger ent = getFromListAppendCancelToString(ents);
+			
+			return null;
+		};
+		
+		MenuItem adminModifyEmployees = operation -> {
+			final int op = (int) operation;
+			List<User> ents = null;
+			
+			try {
+				ents = acc.getAllEmployees();
+			} catch(final SQLException e) {
+				e.printStackTrace();
+			}
+
+			User ent = getFromListAppendCancelToString(ents);
+			
+			return null;
+		};
+		
+		MenuItem adminModificationSelection = operation -> {
+			MenuItem nextNextMenu = getFromMappingAppendCancel(Arrays.asList("Airports", "Routes", "Flights", "Bookings", "Passengers", "Employees"), Arrays.asList(adminModifyAirports, adminModifyRoutes, adminModifyFlights, adminModifyBookings, adminModifyPassengers, adminModifyEmployees));
+			
+			return new MenuReturn(operation, nextNextMenu);
+		};
+		
+		MenuItem adminCrudSelection = nothing -> {
+			final MenuReturn ret = new MenuReturn();
+			
+			retryOnExceptions(nothing1 -> {
+				System.out.println("[(C)REATE | (R)EAD | (U)PDATE | (D)ELETE] ?");
+				
+				final Scanner sc = new Scanner(System.in);
+				
+				String line = sc.nextLine().toLowerCase();
+				if(line.startsWith("c")) {
+					ret.setReturnValue(0);
+				} else if(line.startsWith("r")) {
+					ret.setReturnValue(1);
+				} else if(line.startsWith("d")) {
+					ret.setReturnValue(2);
+				} else if(line.startsWith("u")) {
+					ret.setReturnValue(3);
+				} else {
+					throw new IllegalArgumentException("Invalid Operation.");
+				}
+			});
+			
+			ret.setMenuItem(adminModificationSelection);
+			
+			return ret;
+		};
+		
+		
+		/*
+		 * Let's get started
+		 */
+		
+		
 		MenuItem main = ref -> {
 			System.out.println("Welcome to the Utopia Airlines Management System. Which category of a user are you?");
 			
 			MenuItem employee = ref1 -> {
-					MenuItem nextMenu = getFromMappingAppendCancel(Arrays.asList("Enter Flights You Manage"), Arrays.asList(flightsList));
-					
-					return new MenuReturn(flightAction, nextMenu);
+				MenuItem nextMenu = getFromMappingAppendCancel(Arrays.asList("Enter Flights You Manage"), Arrays.asList(flightsList));
+				
+				return new MenuReturn(flightAction, nextMenu);
 			};
 			
-			
-			MenuItem ret = getFromMapping(Arrays.asList("Employee"), Arrays.asList(employee));
+			MenuItem ret = getFromMapping(Arrays.asList("Employee", "Administrator", "Traveller"), Arrays.asList(employee, adminCrudSelection));
 			
 			return new MenuReturn(null, ret);
 		};

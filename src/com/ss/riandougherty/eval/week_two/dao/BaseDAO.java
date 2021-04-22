@@ -55,6 +55,10 @@ public abstract class BaseDAO<T extends BaseEntity> {
 		}
 	}
 	
+	public Map<String, DAOTable> getPropertyMapping() {
+		return this.propertyMapping;
+	}
+	
 	public abstract T getEntity() throws SQLException;
 	
 	protected static void throwErrorIfNull(final Collection<Object> objects) {
@@ -111,6 +115,8 @@ public abstract class BaseDAO<T extends BaseEntity> {
 			if(!exists) {
 				// save to class variable in case query fails
 				// must call OK() or No_OK() afterwards
+				
+				rs.next();
 				newPrimaryKeyValues.put(daoTable, rs.getObject(1));
 			}
 		}
